@@ -2,12 +2,14 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require [goog.string :as gstring]
             [goog.string.format]
+            [goog.object]
             [cljs.core.async :refer [<! chan]]
             [chromex.logging :refer-macros [log info warn error group group-end]]
             [chromex.chrome-event-channel :refer [make-chrome-event-channel]]
             [chromex.protocols.chrome-port :refer [post-message! get-sender]]
             [chromex.ext.tabs :as tabs]
             [chromex.ext.runtime :as runtime]
+            [chromex.ext.browser-action :as browser-action]
             [chromex-sample.background.storage :refer [test-storage!]]))
 
 (def clients (atom []))
@@ -45,6 +47,20 @@
   (doseq [client @clients]
     (post-message! client "a new tab was created")))
 
+(def youtube-regex #"(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})")
+
+(defn select-youtube-links [tab]
+  (let [url (:url tab)]
+    (re-matches youtube-regex url)))
+
+(defn collect-youtube-links []
+  (let [res (tabs/query (clj->js {:currentWindow true}))]
+    (go
+      (let [found-tabs (<! res)]
+        (log (filter select-youtube-links (first (js->clj found-tabs :keywordize-keys true))))))))
+
+
+
 ; -- main event loop --------------------------------------------------------------------------------------------------------
 
 (defn process-chrome-event [event-num event]
@@ -53,6 +69,7 @@
     (case event-id
       ::runtime/on-connect (apply handle-client-connection! event-args)
       ::tabs/on-created (tell-clients-about-new-tab!)
+      ::browser-action/on-clicked (collect-youtube-links)
       nil)))
 
 (defn run-chrome-event-loop! [chrome-event-channel]
@@ -67,6 +84,7 @@
   (let [chrome-event-channel (make-chrome-event-channel (chan))]
     (tabs/tap-all-events chrome-event-channel)
     (runtime/tap-all-events chrome-event-channel)
+    (browser-action/tap-all-events chrome-event-channel)
     (run-chrome-event-loop! chrome-event-channel)))
 
 ; -- main entry point -------------------------------------------------------------------------------------------------------

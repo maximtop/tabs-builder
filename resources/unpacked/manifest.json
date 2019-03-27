@@ -34,7 +34,8 @@
     "persistent": false
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs"
   ],
   "manifest_version": 2
 }
