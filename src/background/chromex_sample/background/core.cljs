@@ -47,10 +47,18 @@
   (doseq [client @clients]
     (post-message! client "a new tab was created")))
 
-(def youtube-regex #"(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})")
+(def youtube-regex #"(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})") ;; idea
+                  ;;/(?:youtube\.com\\/\S*(?:(?:\\/e(?:mbed))?\\/|watch\?(?:\S*?&?v\=))|youtu\.be\\/)([a-zA-Z0-9_-]{6,11})/ ;; console
+(def youtube-link "https://www.youtube.com/watch?v=18WtDzYHKCI")
+(re-matches youtube-regex youtube-link)
+
+(log youtube-regex)
 
 (defn select-youtube-links [tab]
   (let [url (:url tab)]
+    (log url)
+    ;(log youtube-regex)
+    (log (re-matches youtube-regex url))
     (re-matches youtube-regex url)))
 
 (defn collect-youtube-links []
