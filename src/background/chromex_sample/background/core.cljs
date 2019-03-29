@@ -30,11 +30,11 @@
 (defn run-client-message-loop! [client]
   (log "BACKGROUND: starting event loop for client:" (get-sender client))
   (go-loop []
-    (when-some [message (<! client)]
-      (log "BACKGROUND: got client message:" message "from" (get-sender client))
-      (recur))
-    (log "BACKGROUND: leaving event loop for client:" (get-sender client))
-    (remove-client! client)))
+           (when-some [message (<! client)]
+             (log "BACKGROUND: got client message:" message "from" (get-sender client))
+             (recur))
+           (log "BACKGROUND: leaving event loop for client:" (get-sender client))
+           (remove-client! client)))
 
 ; -- event handlers ---------------------------------------------------------------------------------------------------------
 
@@ -47,25 +47,30 @@
   (doseq [client @clients]
     (post-message! client "a new tab was created")))
 
-(def youtube-regex #"(?:youtube\.com\/\S*(?:(?:\/e(?:mbed))?\/|watch\?(?:\S*?&?v\=))|youtu\.be\/)([a-zA-Z0-9_-]{6,11})") ;; idea
-                  ;;/(?:youtube\.com\\/\S*(?:(?:\\/e(?:mbed))?\\/|watch\?(?:\S*?&?v\=))|youtu\.be\\/)([a-zA-Z0-9_-]{6,11})/ ;; console
-(def youtube-link "https://www.youtube.com/watch?v=18WtDzYHKCI")
-(re-matches youtube-regex youtube-link)
-
-(log youtube-regex)
+(def youtube-regex (re-pattern "(?:youtube\\.com/\\S*(?:(?:\\/e(?:mbed))?/|watch\\?(?:\\S*?&?v\\=))|youtu\\.be/)([a-zA-Z0-9_-]{6,11})"))
 
 (defn select-youtube-links [tab]
   (let [url (:url tab)]
-    (log url)
-    ;(log youtube-regex)
-    (log (re-matches youtube-regex url))
-    (re-matches youtube-regex url)))
+    (re-find youtube-regex url)))
+
+(defn close-tabs [ids]
+  (tabs/remove (to-array ids)))
+
+(defn parse-video-id [urls]
+  (map (fn [url] (let [result (re-find youtube-regex url)]
+                   (log result)
+                   result) urls)))
+
 
 (defn collect-youtube-links []
   (let [res (tabs/query (clj->js {:currentWindow true}))]
     (go
       (let [found-tabs (<! res)]
-        (log (filter select-youtube-links (first (js->clj found-tabs :keywordize-keys true))))))))
+        (let [youtube-tabs (filter select-youtube-links (first (js->clj found-tabs :keywordize-keys true)))]
+          ;(let [urls (map :url youtube-tabs)]
+            ;(log (parse-video-id urls)))
+            (close-tabs (map :id youtube-tabs))
+          (log youtube-tabs))))))
 
 
 
@@ -83,10 +88,10 @@
 (defn run-chrome-event-loop! [chrome-event-channel]
   (log "BACKGROUND: starting main event loop...")
   (go-loop [event-num 1]
-    (when-some [event (<! chrome-event-channel)]
-      (process-chrome-event event-num event)
-      (recur (inc event-num)))
-    (log "BACKGROUND: leaving main event loop")))
+           (when-some [event (<! chrome-event-channel)]
+             (process-chrome-event event-num event)
+             (recur (inc event-num)))
+           (log "BACKGROUND: leaving main event loop")))
 
 (defn boot-chrome-event-loop! []
   (let [chrome-event-channel (make-chrome-event-channel (chan))]
