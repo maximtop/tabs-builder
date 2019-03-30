@@ -84,7 +84,7 @@
   (let [[event-id event-args] event]
     (case event-id
       ::runtime/on-connect (apply handle-client-connection! event-args)
-      ;::tabs/on-created (tell-clients-about-new-tab!)
+      ::tabs/on-created (tell-clients-about-new-tab!)
       ::browser-action/on-clicked (build-youtube-playlist)
       nil)))
 
@@ -98,10 +98,10 @@
 
 (defn boot-chrome-event-loop! []
   (let [chrome-event-channel (make-chrome-event-channel (chan))]
-    ;(tabs/tap-all-events chrome-event-channel)
-    ;(runtime/tap-all-events chrome-event-channel)
-    (browser-action/tap-on-clicked-events chrome-event-channel)))
-    ;(run-chrome-event-loop! chrome-event-channel)))
+    (tabs/tap-all-events chrome-event-channel)
+    (runtime/tap-all-events chrome-event-channel)
+    (browser-action/tap-on-clicked-events chrome-event-channel)
+    (run-chrome-event-loop! chrome-event-channel)))
 
 ; -- main entry point -------------------------------------------------------------------------------------------------------
 
