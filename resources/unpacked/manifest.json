@@ -35,7 +35,8 @@
   },
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "notifications"
   ],
   "manifest_version": 2
 }

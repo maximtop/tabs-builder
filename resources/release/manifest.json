@@ -29,7 +29,9 @@
     "persistent": false
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "notifications"
   ],
   "manifest_version": 2
 }

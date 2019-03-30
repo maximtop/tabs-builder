@@ -3,6 +3,7 @@
   (:require [goog.string :as gstring]
             [goog.string.format]
             [goog.object]
+            [clojure.string :as string]
             [cljs.core.async :refer [<! chan]]
             [chromex.logging :refer-macros [log info warn error group group-end]]
             [chromex.chrome-event-channel :refer [make-chrome-event-channel]]
@@ -53,26 +54,28 @@
   (let [url (:url tab)]
     (re-find youtube-regex url)))
 
-(defn close-tabs [ids]
+(defn close-youtube-tabs [ids]
   (tabs/remove (to-array ids)))
 
-(defn parse-video-id [urls]
-  (map (fn [url] (let [result (re-find youtube-regex url)]
-                   (log result)
-                   result) urls)))
+(defn get-id [url]
+  (let [[_, id] (re-find youtube-regex url)]
+    id))
 
+(defn prepare-playlist [urls]
+  (let [ids (map get-id urls)
+        playlist-url "http://www.youtube.com/watch_videos?video_ids="]
+    (str playlist-url (string/join "," ids))))
 
-(defn collect-youtube-links []
+(defn open-playlist [playlist-url]
+  (tabs/create (clj->js {:url playlist-url})))
+
+(defn build-youtube-playlist []
   (let [res (tabs/query (clj->js {:currentWindow true}))]
     (go
       (let [found-tabs (<! res)]
         (let [youtube-tabs (filter select-youtube-links (first (js->clj found-tabs :keywordize-keys true)))]
-          ;(let [urls (map :url youtube-tabs)]
-            ;(log (parse-video-id urls)))
-            (close-tabs (map :id youtube-tabs))
-          (log youtube-tabs))))))
-
-
+          (open-playlist (prepare-playlist (map :url youtube-tabs)))
+          (close-youtube-tabs (map :id youtube-tabs)))))))
 
 ; -- main event loop --------------------------------------------------------------------------------------------------------
 
@@ -81,8 +84,8 @@
   (let [[event-id event-args] event]
     (case event-id
       ::runtime/on-connect (apply handle-client-connection! event-args)
-      ::tabs/on-created (tell-clients-about-new-tab!)
-      ::browser-action/on-clicked (collect-youtube-links)
+      ;::tabs/on-created (tell-clients-about-new-tab!)
+      ::browser-action/on-clicked (build-youtube-playlist)
       nil)))
 
 (defn run-chrome-event-loop! [chrome-event-channel]
@@ -95,10 +98,10 @@
 
 (defn boot-chrome-event-loop! []
   (let [chrome-event-channel (make-chrome-event-channel (chan))]
-    (tabs/tap-all-events chrome-event-channel)
-    (runtime/tap-all-events chrome-event-channel)
-    (browser-action/tap-all-events chrome-event-channel)
-    (run-chrome-event-loop! chrome-event-channel)))
+    ;(tabs/tap-all-events chrome-event-channel)
+    ;(runtime/tap-all-events chrome-event-channel)
+    (browser-action/tap-on-clicked-events chrome-event-channel)))
+    ;(run-chrome-event-loop! chrome-event-channel)))
 
 ; -- main entry point -------------------------------------------------------------------------------------------------------
 
